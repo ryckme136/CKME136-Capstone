@@ -1,0 +1,457 @@
+---
+title: "Final Results and Code"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+Note: I have made some changes from my initial results such as adding important amenities to the models after figuring out a way to do it. There are more changes as well as you can see below.
+
+Load the Dataset
+
+```{r}
+data <- read.csv('C:/Users/Ryan/Desktop/Capstone/listings.csv')
+str(data)
+
+
+```
+
+
+Removing Redundant and not relevant variables for analysis e.g.(Repeated variables that represent the same thing)
+```{r}
+data$listing_url<-NULL # Not useful for analysis knowing the URL
+data$scrape_id<-NULL # Not useful for analysis knowing the scrape ID
+data$experiences_offered<-NULL # There is only one value it is none, since theres are all living spaces no experiences offered
+data$thumbnail_url<-NULL #URL Links not useful for analysis and most are NA values
+data$medium_url<-NULL #URL Links not useful for analysis and most are NA values
+data$picture_url<-NULL #URL Links not useful for analysis
+data$xl_picture_url<-NULL #URL Links not useful for analysis and most are NA values
+data$thumbnail_url<-NULL #URL Links not useful for analysis
+data$medium_url<-NULL #URL Links not useful for analysis
+data$picture_url<-NULL #URL Links not useful for analysis
+data$xl_picture_url<-NULL #URL Links not useful for analysis
+data$host_url<-NULL #URL Links not useful for analysis
+data$host_thumbnail_url<-NULL #URL Links not useful for analysis
+data$host_picture_url<-NULL #URL Links not useful for analysis
+data$host_name<-NULL #Already have ID , not need two have both 
+data$country_code<-NULL # We already know it's in the US and in LA metro area
+data$country<-NULL# We already know it's in the US
+data$state<-NULL #We already know it's in CA since it's in LA metro area
+data$host_neighbourhood<-NULL # The location of the host maybe not be useful
+data$host_location<-NULL
+data$host_has_profile_pic<-NULL
+data$neighbourhood<-NULL #There is already a cleansed version of the neighbourhood, so this should be more accurate to go off of
+data$is_location_exact<- NULL # I believe that using the general location of the long and lat shuold be sufficient for analysis
+data$square_feet<-NULL #Although, I think square feet is important to the problem at hand, there is just too many NA values in the dataset 37443 NA values in this dataset making it more than 90% of the dataset
+
+#These are redundant numbers that are already shown by minimum_nights and maximum_nights column 
+data$maximum_maximum_nights<-NULL
+data$maximum_minimum_nights<-NULL
+data$maximum_nights_avg_ntm<-NULL
+data$minimum_maximum_nights<-NULL
+data$minimum_minimum_nights<-NULL
+data$minimum_nights_avg_ntm<-NULL
+
+
+
+
+data$market<-NULL # Already shown by City/Neighbourhod,it's going to be in LA metropolitan area,thus redundant information
+data$smart_location<-NULL # Already shown by City/Neighbourhood
+data$host_listings_count<-NULL # Doubled, there is already a total listings count
+
+
+data$jurisdiction_names<-NULL #We already know that it is within the LA metro area
+data$number_of_reviews_ltm<-NULL # Not really useful to know the amount last month, more interested in total
+data$calculated_host_listings_count<-NULL #Repeated total listing counts for each host
+
+data$license<-NULL # License number/ID not important for the analysis
+data$is_business_travel_ready<-NULL #When checking the structure of the dataset, only one factor and it's all false
+```
+
+
+
+Fixing the Data types of variables
+```{r}
+#These should be a character data type
+data$name<-as.character(data$name)
+data$summary<-as.character(data$summary)
+data$space<-as.character(data$space)
+data$description<-as.character(data$description)
+data$neighborhood_overview<-as.character(data$neighborhood_overview)
+data$notes<-as.character(data$notes)
+data$transit<-as.character(data$transit)
+data$access<-as.character(data$access)
+data$interaction<-as.character(data$interaction)
+data$house_rules<-as.character(data$house_rules)
+data$host_since<-as.Date(data$host_since)
+data$host_about<-as.character(data$host_about)
+
+#Was not numeric
+data$host_response_rate<-gsub('[%]','',data$host_response_rate)
+data$host_response_rate<-as.numeric(data$host_response_rate) 
+data$host_acceptance_rate<-gsub('[%]','',data$host_acceptance_rate)
+data$host_acceptance_rate<-as.numeric(data$host_acceptance_rate) 
+
+#Prices was not numeric
+data$price<-gsub('[$]','',data$price)
+data$price<-as.numeric(data$price)
+data$weekly_price<-gsub('[$]','',data$weekly_price)
+data$weekly_price<-as.numeric(data$weekly_price)
+data$monthly_price<-gsub('[$]','',data$monthly_price)
+data$monthly_price<-as.numeric(data$monthly_price)
+data$security_deposit<-gsub('[$]','',data$security_deposit)
+data$security_deposit<-as.numeric(data$security_deposit)
+data$cleaning_fee<-gsub('[$]','',data$cleaning_fee)
+data$cleaning_fee<-as.numeric(data$cleaning_fee)
+data$extra_people<-gsub('[$]','',data$extra_people)
+data$extra_people<-as.numeric(data$extra_people)
+
+#After looking closely at the weekly price and monthly price , the amount don't actually checkout if you multiply the per night
+#By 7 and there are many missing NA values for them as well.
+
+length(which(is.na(data$monthly_price)==TRUE))
+length(which(is.na(data$weekly_price)==TRUE))
+data$weekly_price<-NULL
+data$monthly_price<-NULL
+#Better to remove the weekly/monthly prices due to the number of missing values, moreover AirBnb prices per night anyways
+
+
+#Changing dates to datatype
+data$last_scraped<-as.Date(data$last_scraped)
+data$calendar_last_scraped<-as.Date(data$calendar_last_scraped)
+data$first_review<-as.Date(data$first_review)
+data$last_review<-as.Date(data$last_review)
+
+
+#Cleaning amenities
+
+data$amenities<-as.character(data$amenities)
+data$amenities<-tolower(data$amenities) #to ensure when using grepl it is all lowercase
+
+
+
+#Based on literature one of the most important attributes to pricing is parking and wifi
+
+data$wifi<-grepl("wifi",data$amenities)
+data$wifi<-as.factor(data$wifi)
+data$parking<-grepl("parking",data$amenities)
+data$parking<-as.factor(data$parking)
+
+#I also want to explore the shampoo amemitiy, as I belive that it can have an impact on price since as a traveller the shampoo provided for free can save space and money when travelling and carrying on luggage.
+
+
+data$shampoo<-grepl("shampoo",data$amenities)
+data$parking<-as.factor(data$parking)
+
+```
+
+
+
+
+
+
+Visualiztions of variables (histogram and boxplots)
+```{r}
+
+#Histograms
+hist(data$host_response_rate)
+hist(data$host_acceptance_rate)
+hist(data$price)
+hist(data$bedrooms)
+hist(data$bathrooms)
+hist(data$beds)
+hist(data$security_deposit)
+hist(data$cleaning_fee)
+
+hist(data$availability_365)
+hist(data$review_scores_rating)
+
+
+#Boxplots
+boxplot(data$host_response_rate)
+boxplot(data$host_acceptance_rate)
+boxplot(data$price)
+boxplot(data$bedrooms)
+boxplot(data$bathrooms)
+boxplot(data$beds)
+boxplot(data$security_deposit)
+boxplot(data$cleaning_fee)
+
+boxplot(data$availability_365)
+boxplot(data$review_scores_rating)
+```
+
+
+
+Dealing with the outliers in the dataset
+```{r}
+#Decided to replace the outlier values with the median values, if I used mean instead extreme outliers could possibly affect the mean
+
+boxplot.stats(data$price)
+data$price[which(data$price>334)]<-median(data$price,na.rm=TRUE) #334 is the uppper whisker, no values that are below the lower whisker
+
+boxplot.stats(data$host_acceptance_rate)
+data$host_acceptance_rate[which(data$host_acceptance_rate<63)]<-median(data$host_acceptance_rate,na.rm=TRUE) 
+
+boxplot.stats(data$bedrooms)
+data$bedrooms[which(data$bedrooms>3)]<-median(data$bedrooms,na.rm=TRUE)#3 is the upper whisker, no values that are below the lower whisker
+
+boxplot.stats(data$bathrooms)
+data$bathrooms[which(data$bathrooms>3.5)]<-median(data$bathrooms,na.rm=TRUE)#3.5 is the upper whisker, no values that are below the lower whisker
+
+boxplot.stats(data$beds)
+data$beds[which(data$beds>3)]<-median(data$beds,na.rm=TRUE) #3 is the upper whisker, no values that are below the lower whisker
+
+boxplot.stats(data$security_deposit)
+data$security_deposit[which(data$security_deposit>750)]<-median(data$security_deposit,na.rm=TRUE) # 750 is the upper whisker, no values that are below the lower whisker
+
+boxplot.stats(data$cleaning_fee)
+data$cleaning_fee[which(data$cleaning_fee>265)]<-median(data$cleaning_fee,na.rm=TRUE) # 265 is the upper whisker, no values that are below the lower whisker
+
+boxplot.stats(data$availability_365) #No outliers
+
+boxplot.stats(data$review_scores_rating) 
+data$review_scores_rating[which(data$review_scores_rating<83)]<-median(data$review_scores_rating,na.rm=TRUE) # 83 is the lower whisker, no values above the upper whisker
+
+
+```
+
+
+
+
+
+
+Correlation of the numerical attributes in the dataset
+```{r}
+#First create an numerical attribute dataframe of the dataset
+#Then create a correlation matrix
+#Remove any highly correlated attributes to one another
+
+num_cols_only <- unlist(lapply(data,is.numeric)) #When you lapply is.numeric , it returns a list therefore you need to unlist to use it to make a numeric dataframe
+data_numeric<-data[,num_cols_only]
+cor_matrix<-cor(data_numeric,use="complete.obs")
+library(corrplot)
+corrplot(cor_matrix,type="upper",tl.cex = 0.5) 
+
+#Bedrooms and bathrooms is moderately postively correlated, we can remove bathrooms and keep bedrooms
+#Availability 365 is moderately postively correlated with the other availability values which makes sense
+#Accomadates number is moderately postively correlated with bedrooms,which makes sense as if you have more rooms you can accomodate more people
+```
+
+
+
+Dealing with NA values or missing values in the dataset
+```{r}
+
+
+
+#Now that the outliers have been replaced, I will want to replace any NA values with the mean value
+#If there are records with missing values that are non numerical, I will remove that record if it is logical to do so
+
+data$price[which(is.na(data$price)==TRUE)]<-mean(data$price,na.rm=TRUE)
+data$bedrooms[which(is.na(data$bedrooms)==TRUE)]<-mean(data$bedrooms,na.rm=TRUE)
+data$bathrooms[which(is.na(data$bathrooms)==TRUE)]<-mean(data$bathrooms,na.rm=TRUE)
+data$beds[which(is.na(data$beds)==TRUE)]<-mean(data$beds,na.rm=TRUE)
+data$security_deposit[which(is.na(data$security_deposit)==TRUE)]<-mean(data$security_deposit,na.rm=TRUE)
+data$review_scores_rating[which(is.na(data$review_scores_rating)==TRUE)]<-mean(data$review_scores_rating,na.rm=TRUE)
+data$review_scores_accuracy[which(is.na(data$review_scores_accuracy)==TRUE)]<-mean(data$review_scores_accuracy,na.rm=TRUE)
+data$review_scores_checkin[which(is.na(data$review_scores_checkin)==TRUE)]<-mean(data$review_scores_checkin,na.rm=TRUE)
+data$review_scores_cleanliness[which(is.na(data$review_scores_cleanliness)==TRUE)]<-mean(data$review_scores_cleanliness,na.rm=TRUE)
+data$review_scores_value[which(is.na(data$review_scores_value)==TRUE)]<-mean(data$review_scores_value,na.rm=TRUE)
+data$review_scores_location[which(is.na(data$review_scores_location)==TRUE)]<-mean(data$review_scores_location,na.rm=TRUE)
+data$review_scores_communication[which(is.na(data$review_scores_communication)==TRUE)]<-mean(data$review_scores_communication,na.rm=TRUE)
+data$cleaning_fee[which(is.na(data$cleaning_fee)==TRUE)]<-mean(data$cleaning_fee,na.rm=TRUE)
+
+data<-data[which(!data$host_is_superhost==""),] # Only 3 values that were blank in the dataset, removed
+data<-data[which(!data$bed_type==""),] #10 blank values removed
+data<-data[which(!data$host_response_time==""),] # Only 3 values that were blank in the dataset, which also happens to be the same rows of the superhost that were blank
+data<-data[which(!data$price==0),]#I also removed prices that were at 0, since it doesn't make sense for a listing to be at 0 for the context of the problem,since if it is 0 then that means it's free AirBnb.
+
+#After removing the blank values in the dataset, there was still blank factors in the str(data)
+str(data)
+
+#Removed for analysis
+levels(data$host_is_superhost)[which(levels(data$host_is_superhost)=="")]<-NA 
+levels(data$bed_type)[which(levels(data$bed_type)=="")]<-NA 
+levels(data$host_response_time)[which(levels(data$host_response_time)=="")]<-NA
+levels(data$host_identity_verified)[which(levels(data$host_identity_verified)=="")]<-NA 
+
+```
+
+
+
+
+
+
+Backward & Forward elimination and checking assumptions of the linear regression model
+```{r}
+
+
+model<-lm(price~bedrooms+property_type+beds+host_is_superhost+neighbourhood_cleansed+cleaning_fee+security_deposit+
+            review_scores_rating+bed_type+review_scores_accuracy+review_scores_checkin+review_scores_cleanliness+
+            review_scores_communication+review_scores_location+review_scores_value+wifi+parking+shampoo,data=data)
+
+library(MASS)
+
+summary(model)
+stepAIC(model,direction="both") #Through backward&forward elimination, we eliminated the attribute review_score_accuracy,review_score_communication,and superhost
+
+
+model<-lm(price ~ bedrooms + property_type + beds + neighbourhood_cleansed + cleaning_fee + security_deposit + review_scores_rating + bed_type + review_scores_checkin + review_scores_cleanliness + review_scores_location + review_scores_value + wifi + parking + shampoo, data = data) # new model due to Backward &Forward Elimination
+
+par(mfrow=c(2,2))#Easier to look at the plots in a 2x2 window
+plot(model)
+
+#Based on the plots, it looks like there isn't constant variance, but the other assumptions are upheld 
+#To address this I transformed the dependent variable by taking the natural log of the price
+
+
+model<-lm(log(price)~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+
+            review_scores_rating+bed_type+review_scores_checkin+review_scores_cleanliness
+          +review_scores_location+review_scores_value+wifi+parking+shampoo,data=data)
+
+
+plot(model)
+```
+
+
+In addition, I created a variation to the above model, since the context of the problem is to help new properties determine their price per night, it wouldn't make sense for them to have a ratings on AirBnb. 
+
+```{r}
+model2<-lm(price~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+bed_type+wifi+parking+shampoo,data=data)
+par(mfrow=c(2,2))#Easier to look at the plots in a 2x2 window
+plot(model2)
+
+#Again, need to log the price as there isn't constant variance and for a better model
+
+model2<-lm(log(price)~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+bed_type+wifi+parking+shampoo,data=data)
+plot(model2)
+```
+
+
+Spliting the dataset into a training set and test set by using 10 fold cross validation on the training set. Then create models using the 10 fold cross validation. The benefit of 10 fold cross validation is that it will create a different test set and training set at each fold, but will end up using the entire dataset to be tested and trained.Since we are comparing different models,setting a seed is a must since we want to have the same test set and training set each time the model is being trained using 10 fold cross validation.
+
+It seems that the dataset provided by insideairbnb website doesn't show when they host actually put up their listing, but provides when they scraped the listing off of the website. I also checked actual AirBnb website as well,there's no way to find out the actual time they put up the listing.However, I do find it important to know when they scraped off the listing, since it means that, that was the price per night of their listing on the date of the scraping, which means that the host still thought that their property was worth that much at the time of the scrap and market conditions are still represented at the time of the scraping.
+
+
+
+Multivariable Linear Regression with 10 Fold Cross Validation
+
+```{r}
+
+library(caret)
+set.seed(777)
+train_cv<-trainControl(method="cv",number=10,savePredictions = TRUE) #10 fold cross validation
+
+model_cv<-train(log(price)~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+
+            review_scores_rating+bed_type+review_scores_checkin+review_scores_cleanliness
+          +review_scores_location+review_scores_value+wifi+parking+shampoo,data=data,trControl=train_cv,method="lm")
+
+
+model_cv
+
+#We have three metrics we can look at for our model, RMSE,R2,and MAE on the test sets created by 10 Fold Cross Validation
+
+
+
+#The model variation we did above, I will do again with 10 fold cross validation
+set.seed(777)
+model2_cv<-train(log(price)~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+bed_type+wifi+parking+shampoo,data=data,trControl=train_cv,method="lm")
+
+model2_cv
+```
+
+Summary of the multivariable linear regression model
+```{r}
+summary(model_cv)
+```
+
+
+
+
+Principal Component Regression Model using 10 Fold Cross Validation
+
+
+
+```{r}
+set.seed(777)
+#Principal Component Regression is useful when we have lots of independent variables, therefore one of the reasons I used it here.
+
+train_cv<-trainControl(method="cv",number=10,savePredictions = TRUE) #10 fold cross validation
+
+model_pcr_cv<-train(log(price)~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+
+            review_scores_rating+bed_type+review_scores_checkin+review_scores_cleanliness
+          +review_scores_location+review_scores_value+wifi+parking+shampoo,data=data,trControl=train_cv,method="pcr")
+
+model_pcr_cv # Again, to see the metrics of it when doing 10 Fold Cross Validation.
+
+
+
+```
+
+
+
+
+
+
+Principal Component Regression Model Variation with 10 Fold Cross Validation
+
+
+
+```{r}
+set.seed(777)
+train_cv<-trainControl(method="cv",number=10,savePredictions = TRUE) #10 fold cross validation
+model2_pcr_cv<-train(log(price)~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+bed_type+wifi+parking+shampoo,data=data,trControl=train_cv,method="pcr")
+
+model2_pcr_cv
+
+
+```
+
+
+
+
+
+Random Forest Regression with 10 Fold Cross Validation
+
+
+
+
+```{r}
+set.seed(777)
+train_cv<-trainControl(method="cv",number=10,savePredictions = TRUE) #10 fold cross validation
+model_rf<-train(log(price)~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+
+                    review_scores_rating+bed_type+review_scores_checkin+review_scores_cleanliness
+                  +review_scores_location+review_scores_value+wifi+parking+shampoo,data=data,trControl=train_cv,method="ranger",num.trees=100,verbose=FALSE)
+
+
+
+model_rf
+
+
+#Here, as expected the random forest regression outperforms the other models in terms of RMSE,R2 and MAE. However, the drawback is that it takes a significantly longer time to train the model. I lowered the number of trees in the training, in order to achieve a faster model. At times if you increase the number of trees you will improve model, but this may not be the case and increasing trees will make the model train even longer without providing any improvement in the model.
+
+
+#Due to computation limitation of my computer, I lowered the number of trees to achieve a timely model with 10 Fold Cross Validation.With better computation power we can improve the number of trees. However, in my case I just wanted to showcase that, indeed a random forest is better than the other models and that the sacrifice is the time it takes to train the model.
+
+```
+
+
+
+
+Random Forest Regression with 10 Fold Cross Validation Variation
+
+
+
+```{r}
+set.seed(777)
+model2_rf<-train(log(price)~bedrooms+property_type+beds+neighbourhood_cleansed+cleaning_fee+security_deposit+bed_type
+                   +wifi+parking+shampoo,data=data,trControl=train_cv,method="ranger",num.trees=100,verbose=FALSE)
+
+
+model2_rf
+```
+
+
+
